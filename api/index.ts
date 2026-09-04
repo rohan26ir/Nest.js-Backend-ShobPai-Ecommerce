@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
@@ -47,6 +48,7 @@ export default async function handler(req: Request, res: Response) {
       statusCode: 500,
       message: 'Serverless Function Bootstrap Error',
       error: error?.message || String(error),
+      stack: process.env.NODE_ENV !== 'production' ? error?.stack : undefined,
     });
   }
 }
