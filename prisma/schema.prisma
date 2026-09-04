@@ -207,6 +207,8 @@ model Review {
   reviewerName String?
   avatar      String?
   designation String?  @default("Verified Buyer")
+  adminReply   String?  @db.Text
+  adminReplyAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

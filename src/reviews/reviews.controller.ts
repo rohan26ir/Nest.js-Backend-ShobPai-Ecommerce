@@ -2,11 +2,13 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Query,
   Body,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
@@ -32,15 +34,41 @@ export class ReviewsController {
     return this.reviewsService.getMyReviews(userId);
   }
 
+  @Get('can-review/:productId')
+  @UseGuards(FirebaseAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Check if user purchased product and can review' })
+  async canReview(
+    @CurrentUser('id') userId: string,
+    @Param('productId') productId: string,
+  ) {
+    return this.reviewsService.canUserReview(userId, productId);
+  }
+
   @Post()
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Submit a product review' })
+  @ApiOperation({ summary: 'Submit a product review (verified buyers only)' })
   async createReview(
     @CurrentUser('id') userId: string,
     @Body() dto: { productId: string; rating: number; comment: string; reviewerName?: string; avatar?: string },
   ) {
     return this.reviewsService.createReview(userId, dto);
+  }
+
+  @Patch(':id/reply')
+  @UseGuards(FirebaseAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin reply to a review' })
+  async replyReview(
+    @CurrentUser('role') role: string,
+    @Param('id') id: string,
+    @Body() body: { reply: string },
+  ) {
+    if (role !== 'ADMIN') {
+      throw new ForbiddenException('Only administrators can reply to reviews');
+    }
+    return this.reviewsService.replyReview(id, body.reply);
   }
 
   @Delete(':id')

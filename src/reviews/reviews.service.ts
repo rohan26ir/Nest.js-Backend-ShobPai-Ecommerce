@@ -46,6 +46,27 @@ export class ReviewsService {
     });
   }
 
+  async canUserReview(userId: string, productId: string) {
+    const purchasedOrder = await this.prisma.order.findFirst({
+      where: {
+        userId,
+        items: {
+          some: {
+            productId,
+          },
+        },
+        status: {
+          not: 'CANCELLED',
+        },
+      },
+    });
+
+    return {
+      canReview: !!purchasedOrder,
+      reason: purchasedOrder ? undefined : 'You must purchase this product before writing a review.',
+    };
+  }
+
   async createReview(
     userId: string,
     dto: { productId: string; rating: number; comment: string; reviewerName?: string; avatar?: string }
@@ -57,6 +78,12 @@ export class ReviewsService {
       throw new NotFoundException('Product not found');
     }
 
+    // Verify customer purchased this product
+    const { canReview, reason } = await this.canUserReview(userId, dto.productId);
+    if (!canReview) {
+      throw new ForbiddenException(reason);
+    }
+
     return this.prisma.review.create({
       data: {
         userId,
@@ -65,9 +92,32 @@ export class ReviewsService {
         comment: dto.comment,
         reviewerName: dto.reviewerName,
         avatar: dto.avatar,
+        designation: 'Verified Buyer',
       },
       include: {
         product: true,
+      },
+    });
+  }
+
+  async replyReview(reviewId: string, adminReply: string) {
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      throw new NotFoundException('Review not found');
+    }
+
+    return this.prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        adminReply,
+        adminReplyAt: new Date(),
+      },
+      include: {
+        product: true,
+        user: true,
       },
     });
   }
