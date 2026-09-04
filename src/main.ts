@@ -1,5 +1,13 @@
 import 'reflect-metadata';
 import 'dotenv/config';
+
+if (process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.DATABASE_URL.replace(/^["'\s]+|["'\s]+$/g, '');
+}
+if (process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = process.env.DIRECT_URL.replace(/^["'\s]+|["'\s]+$/g, '');
+}
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
