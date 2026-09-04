@@ -1,0 +1,214 @@
+// Prisma schema for ShobPai E-Commerce using Neon PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  GATEWAY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id          String     @id @default(cuid())
+  firebaseUid String     @unique
+  email       String?    @unique
+  displayName String?
+  phoneNumber String?
+  photoURL    String?
+  role        Role       @default(USER)
+  addresses   Address[]
+  orders      Order[]
+  wishlist    Wishlist[]
+  reviews     Review[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([firebaseUid])
+  @@index([email])
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName    String
+  phone       String
+  addressLine String
+  city        String
+  state       String?
+  zipCode     String?
+  country     String   @default("Bangladesh")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String
+  bgColor     String    @default("bg-emerald-50 text-emerald-800 border-emerald-100")
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+}
+
+model Product {
+  id                  String      @id @default(cuid())
+  name                String
+  slug                String      @unique
+  price               Float
+  originalPrice       Float?
+  discount            Float?      @default(0)
+  images              String[]    @default([])
+  categoryId          String
+  category            Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  rating              Float       @default(5.0)
+  reviewsCount        Int         @default(0)
+  stock               Int         @default(0)
+  sold                Int         @default(0)
+  unit                String      @default("1 kg")
+  description         String      @db.Text
+  shortDescription    String      @db.Text
+  nutritionalBenefits String[]    @default([])
+  storage             String?
+  shelfLife           String?
+  certifications      String?
+  isTrending          Boolean     @default(false)
+  isFeatured          Boolean     @default(false)
+  isDealOfDay         Boolean     @default(false)
+  badge               String?
+  orderItems          OrderItem[]
+  wishlistItems       Wishlist[]
+  reviews             Review[]
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([isFeatured])
+  @@index([isTrending])
+  @@index([isDealOfDay])
+}
+
+model Order {
+  id             String        @id @default(cuid())
+  orderNumber    String        @unique
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guestEmail     String?
+  guestName      String?
+  guestPhone     String?
+  shippingAddress Json
+  status         OrderStatus   @default(PENDING)
+  paymentMethod  PaymentMethod @default(COD)
+  paymentStatus  PaymentStatus @default(PENDING)
+  subtotal       Float
+  shippingFee    Float         @default(0)
+  discountAmount Float         @default(0)
+  totalAmount    Float
+  couponCode     String?
+  notes          String?
+  items          OrderItem[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([orderNumber])
+  @@index([status])
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String?
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName  String
+  productImage String?
+  price        Float
+  quantity     Int
+  unit         String   @default("1 kg")
+  createdAt    DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+model Coupon {
+  id                 String    @id @default(cuid())
+  code               String    @unique
+  discountPercentage Float
+  minSpend           Float     @default(0)
+  description        String
+  isActive           Boolean   @default(true)
+  expiresAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([code])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating      Int      @default(5)
+  comment     String   @db.Text
+  reviewerName String?
+  avatar      String?
+  designation String?  @default("Verified Buyer")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId])
+  @@index([userId])
+}
