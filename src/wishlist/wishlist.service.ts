@@ -101,4 +101,35 @@ export class WishlistService {
 
     return { success: true };
   }
+
+  async syncWishlist(userId: string, productIds: string[]) {
+    if (!productIds || productIds.length === 0) {
+      return this.getMyWishlist(userId);
+    }
+
+    for (const productId of productIds) {
+      if (!productId) continue;
+
+      const product = await this.prisma.product.findUnique({
+        where: { id: productId },
+      });
+      if (!product) continue;
+
+      await this.prisma.wishlist.upsert({
+        where: {
+          userId_productId: {
+            userId,
+            productId,
+          },
+        },
+        create: {
+          userId,
+          productId,
+        },
+        update: {},
+      });
+    }
+
+    return this.getMyWishlist(userId);
+  }
 }

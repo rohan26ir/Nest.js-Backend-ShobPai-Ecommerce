@@ -7,6 +7,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { WishlistModule } from './wishlist/wishlist.module';
+import { CartModule } from './cart/cart.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { AdminModule } from './admin/admin.module';
 import { ReviewsModule } from './reviews/reviews.module';
@@ -19,6 +20,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     ProductsModule,
     OrdersModule,
     WishlistModule,
+    CartModule,
     CouponsModule,
     AdminModule,
     ReviewsModule,

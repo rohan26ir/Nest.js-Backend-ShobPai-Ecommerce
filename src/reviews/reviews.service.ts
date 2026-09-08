@@ -84,7 +84,7 @@ export class ReviewsService {
       throw new ForbiddenException(reason);
     }
 
-    return this.prisma.review.create({
+    const createdReview = await this.prisma.review.create({
       data: {
         userId,
         productId: dto.productId,
@@ -98,6 +98,23 @@ export class ReviewsService {
         product: true,
       },
     });
+
+    // Automatically recalculate and persist real rating & count in database
+    const allReviews = await this.prisma.review.findMany({
+      where: { productId: dto.productId },
+      select: { rating: true },
+    });
+    const avgRating =
+      allReviews.reduce((acc, r) => acc + r.rating, 0) / (allReviews.length || 1);
+    await this.prisma.product.update({
+      where: { id: dto.productId },
+      data: {
+        reviewsCount: allReviews.length,
+        rating: Math.round(avgRating * 10) / 10,
+      },
+    });
+
+    return createdReview;
   }
 
   async replyReview(reviewId: string, adminReply: string) {
@@ -135,8 +152,27 @@ export class ReviewsService {
       throw new ForbiddenException('Not authorized to delete this review');
     }
 
-    return this.prisma.review.delete({
+    const deleted = await this.prisma.review.delete({
       where: { id: reviewId },
     });
+
+    // Automatically update product rating and count on delete
+    const remaining = await this.prisma.review.findMany({
+      where: { productId: review.productId },
+      select: { rating: true },
+    });
+    const avgRating =
+      remaining.length > 0
+        ? remaining.reduce((acc, r) => acc + r.rating, 0) / remaining.length
+        : 5.0;
+    await this.prisma.product.update({
+      where: { id: review.productId },
+      data: {
+        reviewsCount: remaining.length,
+        rating: Math.round(avgRating * 10) / 10,
+      },
+    });
+
+    return deleted;
   }
 }

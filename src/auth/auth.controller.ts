@@ -75,4 +75,23 @@ export class AuthController {
   ) {
     return this.authService.deleteAddress(userId, addressId);
   }
+
+  @Put('addresses/default')
+  @UseGuards(FirebaseAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save or update default delivery address' })
+  async saveDefaultAddress(
+    @CurrentUser('id') userId: string,
+    @Body()
+    dto: {
+      addressLine: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+      fullName?: string;
+      phone?: string;
+    },
+  ) {
+    return this.authService.saveDefaultAddress(userId, dto);
+  }
 }

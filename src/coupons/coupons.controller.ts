@@ -2,14 +2,17 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CouponsService } from './coupons.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
+import { UpdateCouponDto } from './dto/update-coupon.dto';
 import { ValidateCouponDto } from './dto/validate-coupon.dto';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -21,9 +24,10 @@ export class CouponsController {
   constructor(private readonly couponsService: CouponsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get active discount coupons' })
-  async findAll() {
-    return this.couponsService.findAll();
+  @ApiOperation({ summary: 'Get discount coupons' })
+  @ApiQuery({ name: 'activeOnly', required: false, type: Boolean })
+  async findAll(@Query('activeOnly') activeOnly?: string) {
+    return this.couponsService.findAll(activeOnly === 'true');
   }
 
   @Post('validate')
@@ -39,6 +43,15 @@ export class CouponsController {
   @ApiOperation({ summary: 'Create new discount coupon (Admin only)' })
   async create(@Body() dto: CreateCouponDto) {
     return this.couponsService.create(dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a coupon (Admin only)' })
+  async update(@Param('id') id: string, @Body() dto: UpdateCouponDto) {
+    return this.couponsService.update(id, dto);
   }
 
   @Delete(':id')

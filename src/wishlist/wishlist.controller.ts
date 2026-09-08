@@ -43,4 +43,13 @@ export class WishlistController {
   ) {
     return this.wishlistService.removeFromWishlist(userId, productId);
   }
+
+  @Post('sync')
+  @ApiOperation({ summary: 'Sync guest wishlist items after login' })
+  async syncWishlist(
+    @CurrentUser('id') userId: string,
+    @Body() dto: { productIds: string[] },
+  ) {
+    return this.wishlistService.syncWishlist(userId, dto.productIds || []);
+  }
 }

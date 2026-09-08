@@ -135,4 +135,51 @@ export class AuthService {
       where: { id: addressId },
     });
   }
+
+  async saveDefaultAddress(
+    userId: string,
+    dto: {
+      addressLine: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+      fullName?: string;
+      phone?: string;
+    },
+  ) {
+    const existing = await this.prisma.address.findFirst({
+      where: { userId },
+      orderBy: { isDefault: 'desc' },
+    });
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (existing) {
+      return this.prisma.address.update({
+        where: { id: existing.id },
+        data: {
+          addressLine: dto.addressLine,
+          ...(dto.city && { city: dto.city }),
+          ...(dto.state && { state: dto.state }),
+          ...(dto.zipCode && { zipCode: dto.zipCode }),
+          ...(dto.fullName && { fullName: dto.fullName }),
+          ...(dto.phone && { phone: dto.phone }),
+          isDefault: true,
+        },
+      });
+    }
+
+    return this.prisma.address.create({
+      data: {
+        userId,
+        fullName: dto.fullName || user?.displayName || 'Customer',
+        phone: dto.phone || user?.phoneNumber || 'N/A',
+        addressLine: dto.addressLine,
+        city: dto.city || 'Dhaka',
+        state: dto.state,
+        zipCode: dto.zipCode,
+        isDefault: true,
+      },
+    });
+  }
 }
