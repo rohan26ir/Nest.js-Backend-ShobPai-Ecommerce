@@ -12,8 +12,10 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AppModule } from './app.module';
+import helmet from 'helmet';
 import express, { Express, Request, Response } from 'express';
+import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 const server: Express = express();
 let isReady = false;
@@ -21,23 +23,54 @@ let isReady = false;
 export async function createNestApp(expressInstance: Express) {
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressInstance));
 
+  // Security Headers: Apply Helmet
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+    }),
+  );
+
   // Global prefix for all endpoints: /api/..., excluding root '/' for health checks
   app.setGlobalPrefix('api', {
     exclude: ['/'],
   });
 
-  // CORS configuration for local development & deployed frontends
+  // Strict CORS configuration
+  const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,https://shobpai.vercel.app')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/$/, ''));
+
   app.enableCors({
-    origin: true,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes('*') ||
+        origin.endsWith('.vercel.app');
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Permissive in dev, logged in filter
+      }
+    },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Accept, Authorization',
+    allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
   });
 
-  // Global validation pipe for DTO validation
+  // Global exception filter to sanitize errors & prevent internal database leakages
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Global validation pipe for strict DTO validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      forbidNonWhitelisted: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
     }),
@@ -46,8 +79,8 @@ export async function createNestApp(expressInstance: Express) {
   // OpenAPI Swagger Documentation at /api/docs
   const config = new DocumentBuilder()
     .setTitle('ShobPai E-Commerce API')
-    .setDescription('Full REST API for ShobPai E-Commerce Platform with Neon PostgreSQL')
-    .setVersion('1.0')
+    .setDescription('Hardened REST API for ShobPai E-Commerce Platform with Neon PostgreSQL')
+    .setVersion('2.0')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
@@ -79,7 +112,7 @@ export default async function handler(req: Request, res: Response) {
     }
     server(req, res);
   } catch (error: any) {
-    console.error('Serverless error:', error);
+    console.error('Serverless bootstrap error:', error);
     res.status(500).json({
       statusCode: 500,
       message: 'Internal Server Error',

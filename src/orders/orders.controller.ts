@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -25,6 +26,7 @@ export class OrdersController {
 
   @Post()
   @UseGuards(OptionalAuthGuard)
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
   @ApiOperation({ summary: 'Place a new order (Guest or Authenticated)' })
   async createOrder(
     @CurrentUser('id') userId: string | undefined,
@@ -43,7 +45,7 @@ export class OrdersController {
 
   @Get('admin/all')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List all orders (Admin only)' })
   async adminListOrders(@Query('status_filter') statusFilter?: string) {
@@ -52,7 +54,7 @@ export class OrdersController {
 
   @Patch(':id/status')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update order status (Admin only)' })
   async adminUpdateOrderStatus(
@@ -73,3 +75,4 @@ export class OrdersController {
     return this.ordersService.getOrderDetails(orderId, user);
   }
 }
+

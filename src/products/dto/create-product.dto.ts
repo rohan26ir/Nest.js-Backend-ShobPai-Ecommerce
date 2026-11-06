@@ -33,6 +33,12 @@ export class CreateProductDto {
   @IsOptional()
   originalPrice?: number;
 
+  @ApiPropertyOptional({ example: 2.6 })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  buyingPrice?: number;
+
   @ApiPropertyOptional({ example: 27 })
   @Type(() => Number)
   @IsNumber()
@@ -54,6 +60,11 @@ export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
   category: string;
+
+  @ApiPropertyOptional({ example: 'Vegetables' })
+  @IsString()
+  @IsOptional()
+  categoryName?: string;
 
   @ApiPropertyOptional({ example: 50 })
   @Type(() => Number)

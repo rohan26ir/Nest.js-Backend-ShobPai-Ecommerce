@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Delete,
   Body,
   Param,
@@ -10,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CouponsService } from './coupons.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
@@ -31,6 +33,7 @@ export class CouponsController {
   }
 
   @Post('validate')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @ApiOperation({ summary: 'Validate coupon code against cart subtotal' })
   async validateCoupon(@Body() dto: ValidateCouponDto) {
     return this.couponsService.validateCoupon(dto);
@@ -38,7 +41,7 @@ export class CouponsController {
 
   @Post()
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new discount coupon (Admin only)' })
   async create(@Body() dto: CreateCouponDto) {
@@ -47,19 +50,29 @@ export class CouponsController {
 
   @Patch(':id')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a coupon (Admin only)' })
   async update(@Param('id') id: string, @Body() dto: UpdateCouponDto) {
     return this.couponsService.update(id, dto);
   }
 
+  @Put(':id')
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Put update a coupon (Admin only)' })
+  async putUpdate(@Param('id') id: string, @Body() dto: UpdateCouponDto) {
+    return this.couponsService.update(id, dto);
+  }
+
   @Delete(':id')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a coupon (Admin only)' })
   async remove(@Param('id') id: string) {
     return this.couponsService.remove(id);
   }
 }
+

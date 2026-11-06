@@ -13,7 +13,10 @@ datasource db {
 
 enum Role {
   USER
+  CUSTOMER
+  MODERATOR
   ADMIN
+  SUPER_ADMIN
 }
 
 enum OrderStatus {
@@ -54,6 +57,7 @@ model User {
 
   @@index([firebaseUid])
   @@index([email])
+  @@index([role])
 }
 
 model Address {
@@ -94,6 +98,7 @@ model Product {
   slug                String      @unique
   price               Float
   originalPrice       Float?
+  buyingPrice         Float?
   discount            Float?      @default(0)
   images              String[]    @default([])
   categoryId          String
@@ -125,6 +130,8 @@ model Product {
   @@index([isFeatured])
   @@index([isTrending])
   @@index([isDealOfDay])
+  @@index([price])
+  @@index([rating])
 }
 
 model Order {
@@ -152,6 +159,7 @@ model Order {
   @@index([userId])
   @@index([orderNumber])
   @@index([status])
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -231,4 +239,14 @@ model Review {
 
   @@index([productId])
   @@index([userId])
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
 }

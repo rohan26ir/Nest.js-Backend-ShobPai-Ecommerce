@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
+import { CreateReviewDto } from './dto/create-review.dto';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -51,7 +52,7 @@ export class ReviewsController {
   @ApiOperation({ summary: 'Submit a product review (verified buyers only)' })
   async createReview(
     @CurrentUser('id') userId: string,
-    @Body() dto: { productId: string; rating: number; comment: string; reviewerName?: string; avatar?: string },
+    @Body() dto: CreateReviewDto,
   ) {
     return this.reviewsService.createReview(userId, dto);
   }
@@ -65,7 +66,7 @@ export class ReviewsController {
     @Param('id') id: string,
     @Body() body: { reply: string },
   ) {
-    if (role !== 'ADMIN') {
+    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Only administrators can reply to reviews');
     }
     return this.reviewsService.replyReview(id, body.reply);
@@ -80,6 +81,7 @@ export class ReviewsController {
     @CurrentUser('role') role: string,
     @Param('id') id: string,
   ) {
-    return this.reviewsService.deleteReview(userId, id, role === 'ADMIN');
+    const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+    return this.reviewsService.deleteReview(userId, id, isAdmin);
   }
 }

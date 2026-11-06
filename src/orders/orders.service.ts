@@ -43,13 +43,47 @@ export class OrdersService {
 
     // Execute order creation and stock decrement in transaction
     const order = await this.prisma.$transaction(async (tx) => {
+      // 1. Check stock availability for all items and resolve valid product IDs in DB
+      const validatedItems: {
+        productId: string | null;
+        productName: string;
+        productImage?: string;
+        price: number;
+        quantity: number;
+        unit: string;
+      }[] = [];
+
+      for (const item of dto.items) {
+        let validProductId: string | null = null;
+        if (item.productId) {
+          const prod = await tx.product.findUnique({ where: { id: item.productId } });
+          if (prod) {
+            if (prod.stock < item.quantity) {
+              throw new BadRequestException(
+                `Product '${item.productName || prod.name}' has only ${prod.stock} items left in stock (requested ${item.quantity}).`,
+              );
+            }
+            validProductId = prod.id;
+          }
+        }
+
+        validatedItems.push({
+          productId: validProductId,
+          productName: item.productName,
+          productImage: item.productImage,
+          price: item.price,
+          quantity: item.quantity,
+          unit: item.unit || '1 kg',
+        });
+      }
+
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
           userId: userId || null,
           guestEmail: dto.guestEmail || (dto.shippingAddress as any)?.email,
-          guestName: dto.guestName || dto.shippingAddress?.fullName,
-          guestPhone: dto.guestPhone || dto.shippingAddress?.phone,
+          guestName: dto.guestName || dto.shippingAddress?.fullName || 'Guest Customer',
+          guestPhone: dto.guestPhone || dto.shippingAddress?.phone || '',
           shippingAddress: dto.shippingAddress as any,
           status: OrderStatus.PENDING,
           paymentMethod,
@@ -61,14 +95,7 @@ export class OrdersService {
           couponCode: dto.couponCode,
           notes: dto.notes,
           items: {
-            create: dto.items.map((item) => ({
-              productId: item.productId,
-              productName: item.productName,
-              productImage: item.productImage,
-              price: item.price,
-              quantity: item.quantity,
-              unit: item.unit || '1 kg',
-            })),
+            create: validatedItems,
           },
         },
         include: {
@@ -76,8 +103,8 @@ export class OrdersService {
         },
       });
 
-      // Update product stock and sold counts
-      for (const item of dto.items) {
+      // Update product stock and sold counts for valid product IDs
+      for (const item of validatedItems) {
         if (item.productId) {
           try {
             await tx.product.update({
@@ -88,7 +115,7 @@ export class OrdersService {
               },
             });
           } catch {
-            // Product might have been custom/seeded id
+            // Product update gracefully caught if concurrent change occurs
           }
         }
       }
@@ -122,6 +149,7 @@ export class OrdersService {
             email: true,
             displayName: true,
             phoneNumber: true,
+            photoURL: true,
           },
         },
       },
@@ -160,6 +188,7 @@ export class OrdersService {
             email: true,
             displayName: true,
             phoneNumber: true,
+            photoURL: true,
           },
         },
       },
@@ -185,17 +214,52 @@ export class OrdersService {
       );
     }
 
-    return this.prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: upperStatus as OrderStatus,
-        ...(upperStatus === OrderStatus.DELIVERED && {
-          paymentStatus: PaymentStatus.PAID,
-        }),
-      },
-      include: {
-        items: true,
-      },
+    const previousStatus = order.status;
+    const newStatus = upperStatus as OrderStatus;
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: newStatus,
+          ...(newStatus === OrderStatus.DELIVERED && {
+            paymentStatus: PaymentStatus.PAID,
+          }),
+        },
+        include: {
+          items: true,
+        },
+      });
+
+      // If order was cancelled, return items to inventory
+      if (previousStatus !== OrderStatus.CANCELLED && newStatus === OrderStatus.CANCELLED) {
+        for (const item of updated.items) {
+          if (item.productId) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stock: { increment: item.quantity },
+                sold: { decrement: item.quantity },
+              },
+            }).catch(() => {});
+          }
+        }
+      } else if (previousStatus === OrderStatus.CANCELLED && newStatus !== OrderStatus.CANCELLED) {
+        // Re-decrement if order is revived
+        for (const item of updated.items) {
+          if (item.productId) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stock: { decrement: item.quantity },
+                sold: { increment: item.quantity },
+              },
+            }).catch(() => {});
+          }
+        }
+      }
+
+      return updated;
     });
   }
 }

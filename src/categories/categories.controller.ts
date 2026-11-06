@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -35,7 +36,7 @@ export class CategoriesController {
 
   @Post()
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new category (Admin only)' })
   async create(@Body() dto: CreateCategoryDto) {
@@ -44,19 +45,29 @@ export class CategoriesController {
 
   @Put(':id')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update category (Admin only)' })
   async update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
     return this.categoriesService.update(id, dto);
   }
 
+  @Patch(':id')
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Patch category (Admin only)' })
+  async patch(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+    return this.categoriesService.update(id, dto);
+  }
+
   @Delete(':id')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete category (Admin only)' })
   async remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);
   }
 }
+

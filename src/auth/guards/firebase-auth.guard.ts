@@ -24,7 +24,6 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     try {
-      // Decode JWT payload (standard 3-part base64url token)
       let uid: string | undefined;
       let email: string | undefined;
 
@@ -35,13 +34,17 @@ export class FirebaseAuthGuard implements CanActivate {
         uid = payload.user_id || payload.sub || payload.uid;
         email = payload.email;
       } else {
-        // Fallback for custom or demo tokens
         uid = token;
       }
 
       if (!uid && !email) {
         throw new UnauthorizedException('Invalid token claims');
       }
+
+      const adminEmails = (process.env.ADMIN_EMAILS || 'rohan26ir@gmail.com,admin@shobpai.com')
+        .split(',')
+        .map((e) => e.trim().toLowerCase());
+      const isAdminEmail = email ? adminEmails.includes(email.toLowerCase()) : false;
 
       // Find user in PostgreSQL by firebaseUid or email
       let user = await this.prisma.user.findFirst({
@@ -62,10 +65,12 @@ export class FirebaseAuthGuard implements CanActivate {
           displayName: email ? email.split('@')[0] : 'User',
           phoneNumber: null,
           photoURL: null,
-          role: email && process.env.ADMIN_EMAILS?.includes(email) ? 'ADMIN' : 'USER',
+          role: isAdminEmail ? 'ADMIN' : 'USER',
           createdAt: new Date(),
           updatedAt: new Date(),
         } as any;
+      } else if (isAdminEmail && (user.role === 'USER' || user.role === 'CUSTOMER')) {
+        user.role = 'ADMIN';
       }
 
       request.user = user;

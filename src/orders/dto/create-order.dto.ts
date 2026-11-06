@@ -1,6 +1,5 @@
 import {
   IsArray,
-  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -11,6 +10,11 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class OrderItemDto {
+  @ApiPropertyOptional({ example: 'prod-1' })
+  @IsString()
+  @IsOptional()
+  id?: string;
+
   @ApiProperty({ example: 'prod-1' })
   @IsString()
   @IsNotEmpty()
@@ -41,15 +45,20 @@ export class OrderItemDto {
 }
 
 export class ShippingAddressDto {
-  @ApiProperty({ example: 'John Doe' })
+  @ApiPropertyOptional({ example: 'John Doe' })
   @IsString()
-  @IsNotEmpty()
-  fullName: string;
+  @IsOptional()
+  fullName?: string;
 
-  @ApiProperty({ example: '+880 1711-223344' })
+  @ApiPropertyOptional({ example: '+880 1711-223344' })
   @IsString()
-  @IsNotEmpty()
-  phone: string;
+  @IsOptional()
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'customer@example.com' })
+  @IsString()
+  @IsOptional()
+  email?: string;
 
   @ApiProperty({ example: 'West 14th Maria Reichenbach' })
   @IsString()

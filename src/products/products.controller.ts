@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -37,7 +38,7 @@ export class ProductsController {
 
   @Post()
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new product (Admin only)' })
   async create(@Body() dto: CreateProductDto) {
@@ -46,19 +47,29 @@ export class ProductsController {
 
   @Put(':id')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update product information (Admin only)' })
   async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.productsService.update(id, dto);
   }
 
+  @Patch(':id')
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Patch product information (Admin only)' })
+  async patch(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    return this.productsService.update(id, dto);
+  }
+
   @Delete(':id')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a product (Admin only)' })
   async remove(@Param('id') id: string) {
     return this.productsService.remove(id);
   }
 }
+

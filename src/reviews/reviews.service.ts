@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -47,23 +48,56 @@ export class ReviewsService {
   }
 
   async canUserReview(userId: string, productId: string) {
-    const purchasedOrder = await this.prisma.order.findFirst({
+    const userRecord = await this.prisma.user.findUnique({ where: { id: userId } });
+    const userEmail = userRecord?.email;
+
+    // Count completed/delivered orders containing this product
+    const deliveredPurchasesCount = await this.prisma.order.count({
       where: {
-        userId,
+        OR: [
+          { userId },
+          ...(userEmail ? [{ guestEmail: userEmail }] : []),
+        ],
+        status: OrderStatus.DELIVERED,
         items: {
           some: {
             productId,
           },
         },
-        status: {
-          not: 'CANCELLED',
-        },
       },
     });
 
+    if (deliveredPurchasesCount === 0) {
+      return {
+        canReview: false,
+        reason: 'You can only review a product after your order has been delivered.',
+        deliveredPurchasesCount: 0,
+        userReviewsCount: 0,
+      };
+    }
+
+    // Count user's existing reviews for this product
+    const userReviewsCount = await this.prisma.review.count({
+      where: {
+        userId,
+        productId,
+      },
+    });
+
+    if (userReviewsCount >= deliveredPurchasesCount) {
+      return {
+        canReview: false,
+        reason: 'You have already reviewed this product for your delivered purchase(s). Buy again to review again.',
+        userReviewsCount,
+        deliveredPurchasesCount,
+      };
+    }
+
     return {
-      canReview: !!purchasedOrder,
-      reason: purchasedOrder ? undefined : 'You must purchase this product before writing a review.',
+      canReview: true,
+      userReviewsCount,
+      deliveredPurchasesCount,
+      remainingReviews: deliveredPurchasesCount - userReviewsCount,
     };
   }
 
