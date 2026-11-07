@@ -50,14 +50,26 @@ async function bootstrap() {
 export default async function handler(req: Request, res: Response) {
   try {
     await bootstrap();
-    server(req, res);
+    return new Promise<void>((resolve, reject) => {
+      res.on('finish', () => resolve());
+      res.on('close', () => resolve());
+      res.on('error', (err) => reject(err));
+      server(req, res);
+    });
   } catch (error: any) {
     console.error('Serverless bootstrap error:', error);
-    res.status(500).json({
+    const body = JSON.stringify({
       statusCode: 500,
       message: 'Serverless Function Bootstrap Error',
       error: error?.message || String(error),
-      stack: process.env.NODE_ENV !== 'production' ? error?.stack : undefined,
+      stack: error?.stack,
     });
+    if (typeof (res as any).status === 'function') {
+      (res as any).status(500).send(body);
+    } else {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(body);
+    }
   }
 }
